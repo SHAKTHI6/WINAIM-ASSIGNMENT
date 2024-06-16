@@ -1,0 +1,92 @@
+//Employee Management System using mysql
+
+import mysql.connector
+from datetime import datetime, timedelta
+
+# Establishing the connection to the MySQL database
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="password",
+    database="employee_management"
+)
+
+cursor = conn.cursor()
+
+# Creating tables
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS departments (
+    department_id INT PRIMARY KEY,
+    department_name VARCHAR(255) NOT NULL
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS employees (
+    employee_id INT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    department_id INT,
+    hire_date DATE,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS salaries (
+    employee_id INT,
+    salary DECIMAL(10, 2),
+    from_date DATE,
+    to_date DATE,
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
+);
+""")
+
+# Query to find all employees who have been hired in the last year
+one_year_ago = datetime.now() - timedelta(days=365)
+cursor.execute("""
+SELECT * FROM employees
+WHERE hire_date >= %s;
+""", (one_year_ago,))
+
+employees_hired_last_year = cursor.fetchall()
+
+# Query to calculate the total salary expenditure for each department
+cursor.execute("""
+SELECT d.department_name, SUM(s.salary) AS total_salary_expenditure
+FROM departments d
+JOIN employees e ON d.department_id = e.department_id
+JOIN salaries s ON e.employee_id = s.employee_id
+GROUP BY d.department_name;
+""")
+
+total_salary_expenditure = cursor.fetchall()
+
+# Query to find the top 5 highest-paid employees along with their department names
+cursor.execute("""
+SELECT e.first_name, e.last_name, d.department_name, s.salary
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+JOIN salaries s ON e.employee_id = s.employee_id
+ORDER BY s.salary DESC
+LIMIT 5;
+""")
+
+top_5_highest_paid_employees = cursor.fetchall()
+
+# Closing the connection
+cursor.close()
+conn.close()
+
+# Printing the results
+print("Employees hired in the last year:")
+for employee in employees_hired_last_year:
+    print(employee)
+
+print("\nTotal salary expenditure for each department:")
+for expenditure in total_salary_expenditure:
+    print(expenditure)
+
+print("\nTop 5 highest-paid employees along with their department names:")
+for employee in top_5_highest_paid_employees:
+    print(employee)
